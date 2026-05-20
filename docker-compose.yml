@@ -34,8 +34,14 @@ services:
       PHOENIX_WORKING_DIR: /phoenix
     volumes:
       - phoenixdata:/phoenix
+    # The Phoenix image ships no shell, so the healthcheck must be exec-form
+    # (no CMD-SHELL) and use 127.0.0.1 (the server binds IPv4).
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:6006/healthz').status==200 else 1)\""]
+      test:
+        - "CMD"
+        - "python3"
+        - "-c"
+        - "import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://127.0.0.1:6006/healthz').status==200 else 1)"
       interval: 10s
       timeout: 5s
       retries: 12
@@ -135,8 +141,10 @@ services:
     depends_on:
       governance-api:
         condition: service_healthy
+    # Use curl + 127.0.0.1: busybox wget resolves localhost to IPv6 (::1) but
+    # nginx binds IPv4, which produced false "unhealthy" status.
     healthcheck:
-      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz >/dev/null 2>&1 || exit 1"]
+      test: ["CMD", "curl", "-fsS", "http://127.0.0.1:3000/healthz"]
       interval: 10s
       timeout: 5s
       retries: 6
