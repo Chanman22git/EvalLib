@@ -26,6 +26,8 @@ class AnthropicProvider:
         )
 
     async def complete(self, req: ChatRequest, model: str) -> ProviderResult:
+        # Resolve placeholder model ids to the configured real model.
+        model_to_call = settings.anthropic_model or model
         system = "\n".join(m.content for m in req.messages if m.role == "system")
         chat = [
             {"role": m.role, "content": m.content}
@@ -33,7 +35,7 @@ class AnthropicProvider:
             if m.role in ("user", "assistant")
         ]
         resp = await self._client.messages.create(
-            model=model,
+            model=model_to_call,
             system=system or None,
             messages=chat,
             max_tokens=req.max_tokens,

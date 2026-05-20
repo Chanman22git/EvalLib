@@ -12,6 +12,11 @@ class Settings(BaseSettings):
     anthropic_api_key: str = ""
     anthropic_base_url: str = "https://api.anthropic.com"
     gateway_default_model: str = "claude-sonnet-4-6"
+    # The model strings used across the POC (incl. seeded eval judge_config) are
+    # placeholders. In anthropic mode, set ANTHROPIC_MODEL to a real model id your
+    # account can access; the gateway uses it for every real call (agent + judge),
+    # so you don't have to rewrite the placeholders anywhere.
+    anthropic_model: str = ""
 
     otel_exporter_otlp_endpoint: str = "http://otel-collector:4317"
     otel_service_name: str = "mock-gateway"
