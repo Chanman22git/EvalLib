@@ -122,6 +122,25 @@ services:
       timeout: 5s
       retries: 12
 
+  # ── Experience UI ────────────────────────────────────────────────────────────
+  ui:
+    build:
+      context: ./services/ui
+      args:
+        VITE_GOVERNANCE_API_URL: ${VITE_GOVERNANCE_API_URL:-http://localhost:8001}
+        VITE_ORCHESTRATOR_URL: ${VITE_ORCHESTRATOR_URL:-http://localhost:8002}
+        VITE_PHOENIX_URL: ${VITE_PHOENIX_URL:-http://localhost:6006}
+    ports:
+      - "3000:3000"
+    depends_on:
+      governance-api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:3000/healthz >/dev/null 2>&1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
   # ── Seed / demo helper (on-demand, not started by `up`) ──────────────────────
   seed:
     build: ./services/seed

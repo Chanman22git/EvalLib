@@ -49,7 +49,7 @@ who approved it, the verdict, and a link to the trace).
                           │
                           ▼
               ┌───────────────────────┐
-              │  Experience UI (:3000) │  (Phase E)
+              │  Experience UI (:3000) │
               └───────────────────────┘
 ```
 
@@ -69,7 +69,7 @@ URLs once up:
 
 | Service | URL |
 |---|---|
-| Experience UI | http://localhost:3000 *(Phase E)* |
+| Experience UI | http://localhost:3000 |
 | Phoenix | http://localhost:6006 |
 | Governance API docs | http://localhost:8001/docs |
 | Eval Orchestrator docs | http://localhost:8002/docs |
@@ -112,7 +112,7 @@ Raw telemetry (including redacted PII) is also written to
 | [`services/governance-api`](services/governance-api) | Agent + eval registry, governance state machine, audit log |
 | [`services/eval-orchestrator`](services/eval-orchestrator) | Runs evals on traces via `arize-phoenix-evals`, emits OTel eval events |
 | [`services/seed`](services/seed) | Demo data + sample eval definitions |
-| [`services/ui`](services/ui) | Experience UI *(Phase E)* |
+| [`services/ui`](services/ui) | Experience UI (React + TS + Tailwind + shadcn) |
 | [`otel-collector`](otel-collector) | OTLP ingestion, PII redaction, fan-out |
 
 ## Make targets
