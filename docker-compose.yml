@@ -1,0 +1,140 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# EvalLib — local-first POC stack. `docker compose up` brings everything live.
+# Services: postgres, phoenix, otel-collector, mock-gateway, governance-api,
+# eval-orchestrator. (The Experience UI is added in Phase E.)
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+  # ── Governance Store ───────────────────────────────────────────────────────
+  postgres:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-evallib}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-evallib_dev_pw}
+      POSTGRES_DB: ${POSTGRES_DB:-evallib}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-evallib} -d ${POSTGRES_DB:-evallib}"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  # ── Phoenix: trace backend + eval execution engine ─────────────────────────
+  phoenix:
+    image: ${PHOENIX_IMAGE:-arizephoenix/phoenix:latest}
+    ports:
+      - "6006:6006"   # UI + OTLP/HTTP
+      # 4317 (OTLP gRPC) is intentionally NOT published — the collector reaches
+      # it on the internal network as phoenix:4317, avoiding a clash with the
+      # collector's own published 4317.
+    environment:
+      PHOENIX_WORKING_DIR: /phoenix
+    volumes:
+      - phoenixdata:/phoenix
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:6006/healthz').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── OpenTelemetry Collector ────────────────────────────────────────────────
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.115.1
+    command: ["--config=/etc/otel-collector-config.yaml"]
+    volumes:
+      - ./otel-collector/otel-collector-config.yaml:/etc/otel-collector-config.yaml:ro
+      - ./otel-collector/output:/output
+    environment:
+      DEPLOYMENT_ENVIRONMENT: ${DEPLOYMENT_ENVIRONMENT:-poc}
+      SERVICE_NAMESPACE: ${SERVICE_NAMESPACE:-evallib}
+    ports:
+      - "4317:4317"   # OTLP gRPC (from gateway + orchestrator)
+      - "4318:4318"   # OTLP HTTP
+    depends_on:
+      phoenix:
+        condition: service_started
+
+  # ── Mock Model Gateway ──────────────────────────────────────────────────────
+  mock-gateway:
+    build: ./services/mock-gateway
+    env_file: .env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: mock-gateway
+      GOVERNANCE_API_URL: http://governance-api:8001
+    ports:
+      - "8080:8080"
+    depends_on:
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8080/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+
+  # ── Governance API ───────────────────────────────────────────────────────────
+  governance-api:
+    build: ./services/governance-api
+    env_file: .env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: governance-api
+      DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-evallib}:${POSTGRES_PASSWORD:-evallib_dev_pw}@postgres:5432/${POSTGRES_DB:-evallib}
+    ports:
+      - "8001:8001"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8001/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── Eval Orchestrator ──────────────────────────────────────────────────────
+  eval-orchestrator:
+    build: ./services/eval-orchestrator
+    env_file: .env
+    environment:
+      OTEL_EXPORTER_OTLP_ENDPOINT: http://otel-collector:4317
+      OTEL_SERVICE_NAME: eval-orchestrator
+      GOVERNANCE_API_URL: http://governance-api:8001
+      GATEWAY_URL: http://mock-gateway:8080
+      PHOENIX_BASE_URL: http://phoenix:6006
+    ports:
+      - "8002:8002"
+    depends_on:
+      governance-api:
+        condition: service_healthy
+      phoenix:
+        condition: service_started
+      otel-collector:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request,sys; sys.exit(0 if urllib.request.urlopen('http://localhost:8002/health').status==200 else 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+
+  # ── Seed / demo helper (on-demand, not started by `up`) ──────────────────────
+  seed:
+    build: ./services/seed
+    profiles: ["tools"]
+    env_file: .env
+    environment:
+      GOVERNANCE_API_URL: http://governance-api:8001
+      GATEWAY_URL: http://mock-gateway:8080
+      EVAL_ORCHESTRATOR_URL: http://eval-orchestrator:8002
+    depends_on:
+      governance-api:
+        condition: service_healthy
+
+volumes:
+  pgdata:
+  phoenixdata:

@@ -1,0 +1,118 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# EvalLib OpenTelemetry Collector configuration
+#
+# Role: single ingestion + processing point for all EvalLib telemetry. Receives
+# OTLP from the mock gateway and eval orchestrator, redacts PII, enriches
+# resource attributes, then fans out to Phoenix (traces), a file (audit/replay),
+# and — optionally — Datadog and Splunk.
+#
+# Pipeline: receivers → processors → exporters.
+# ─────────────────────────────────────────────────────────────────────────────
+
+receivers:
+  # Accept OTLP over both gRPC (4317) and HTTP (4318). The mock gateway and the
+  # eval orchestrator both push here.
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  # Batch spans/logs before export for efficiency. Small timeout keeps the POC
+  # feeling "live" (traces show up in Phoenix within a second or two).
+  batch:
+    timeout: 1s
+    send_batch_size: 256
+
+  # ── PII redaction (regex-based, POC-grade) ────────────────────────────────
+  # Masks common sensitive patterns in span/log attribute *values*. This is a
+  # blunt instrument for the POC; production would use a dedicated PII detector.
+  # `transform` runs OTTL statements over every span and log record.
+  transform/pii_redaction:
+    error_mode: ignore
+    trace_statements:
+      # Span-level attributes.
+      - context: span
+        statements:
+          # Emails
+          - replace_all_patterns(attributes, "value", "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", "[REDACTED_EMAIL]")
+          # SSNs (before phone, so the dashed-9-digit form isn't eaten by phone)
+          - replace_all_patterns(attributes, "value", "\\d{3}-\\d{2}-\\d{4}", "[REDACTED_SSN]")
+          # Credit-card-like 16-digit sequences (optionally separated)
+          - replace_all_patterns(attributes, "value", "\\d{4}[ \\-]?\\d{4}[ \\-]?\\d{4}[ \\-]?\\d{4}", "[REDACTED_CC]")
+          # US-style phone numbers
+          - replace_all_patterns(attributes, "value", "\\+?\\d{0,2}[ .\\-]?\\(?\\d{3}\\)?[ .\\-]?\\d{3}[ .\\-]?\\d{4}", "[REDACTED_PHONE]")
+      # Span EVENT attributes — this is where captured prompt/response content
+      # lives (gen_ai.user.message, gen_ai.choice, …), so it's the primary PII
+      # vector and must be redacted too.
+      - context: spanevent
+        statements:
+          - replace_all_patterns(attributes, "value", "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", "[REDACTED_EMAIL]")
+          - replace_all_patterns(attributes, "value", "\\d{3}-\\d{2}-\\d{4}", "[REDACTED_SSN]")
+          - replace_all_patterns(attributes, "value", "\\d{4}[ \\-]?\\d{4}[ \\-]?\\d{4}[ \\-]?\\d{4}", "[REDACTED_CC]")
+          - replace_all_patterns(attributes, "value", "\\+?\\d{0,2}[ .\\-]?\\(?\\d{3}\\)?[ .\\-]?\\d{3}[ .\\-]?\\d{4}", "[REDACTED_PHONE]")
+    log_statements:
+      - context: log
+        statements:
+          - replace_all_patterns(attributes, "value", "[A-Za-z0-9._%+\\-]+@[A-Za-z0-9.\\-]+\\.[A-Za-z]{2,}", "[REDACTED_EMAIL]")
+          - replace_all_patterns(attributes, "value", "\\d{3}-\\d{2}-\\d{4}", "[REDACTED_SSN]")
+
+  # ── Resource enrichment ───────────────────────────────────────────────────
+  # Stamp every signal with environment + namespace so downstream backends can
+  # filter EvalLib telemetry consistently. Values come from collector env vars.
+  resource/enrich:
+    attributes:
+      - key: deployment.environment
+        value: ${env:DEPLOYMENT_ENVIRONMENT}
+        action: upsert
+      - key: service.namespace
+        value: ${env:SERVICE_NAMESPACE}
+        action: upsert
+
+exporters:
+  # Phoenix is the trace backend + eval execution engine.
+  otlp/phoenix:
+    endpoint: phoenix:4317
+    tls:
+      insecure: true
+
+  # File exporter: durable, inspectable record of everything that flowed through
+  # the collector. Used for audit replay and to satisfy AC-8 (inspect eval events).
+  file/audit:
+    path: /output/otel-audit.jsonl
+
+  # Console exporter for live debugging during the POC.
+  debug:
+    verbosity: normal
+
+  # ── Optional enterprise backends (disabled by default) ─────────────────────
+  # Uncomment and configure to fan telemetry out to Datadog / Splunk. The POC
+  # works without these; they demonstrate the "emit OTel, keep your backends"
+  # principle (NG1).
+  #
+  # datadog:
+  #   api:
+  #     key: ${env:DD_API_KEY}
+  #     site: datadoghq.com
+  #
+  # otlphttp/splunk:
+  #   endpoint: ${env:SPLUNK_OTLP_ENDPOINT}
+  #   headers:
+  #     X-SF-Token: ${env:SPLUNK_ACCESS_TOKEN}
+
+service:
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [transform/pii_redaction, resource/enrich, batch]
+      # Add `datadog` / `otlphttp/splunk` here once configured.
+      exporters: [otlp/phoenix, file/audit, debug]
+    logs:
+      receivers: [otlp]
+      processors: [transform/pii_redaction, resource/enrich, batch]
+      exporters: [file/audit, debug]
+  telemetry:
+    logs:
+      level: info
