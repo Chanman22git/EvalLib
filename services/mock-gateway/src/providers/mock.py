@@ -11,10 +11,42 @@ from .base import ProviderResult
 _JUDGE_HINT = re.compile(r"verdict|json|score", re.IGNORECASE)
 _VERDICTS = ["compliant", "non_compliant", "ambiguous"]
 
+# Agents that ground answers put retrieved passages after this marker (see
+# scripts/policy_agent.py). In mock mode we quote them so the answer is visibly
+# grounded even without a real model.
+_CONTEXT_MARKER = re.compile(r"policy context:\s*(.+)", re.IGNORECASE | re.DOTALL)
+_SENTENCE = re.compile(r"[^.!?\n]+[.!?]")
+
+
+def _extract_context(messages) -> str:
+    """Pull the retrieved-context block from the system message (only)."""
+    for m in messages:
+        if m.role == "system":
+            match = _CONTEXT_MARKER.search(m.content)
+            if match:
+                return match.group(1)
+    return ""
+
 
 def _estimate_tokens(text: str) -> int:
     # ~4 chars per token is a serviceable POC approximation.
     return max(1, len(text) // 4)
+
+
+def _grounded_answer(context: str, question: str) -> str:
+    """Compose a grounded-looking answer by quoting the most relevant context
+    sentence (the one sharing the most words with the question)."""
+    sentences = [s.strip() for s in _SENTENCE.findall(context) if s.strip()]
+    if not sentences:
+        sentences = [context.strip()[:200]] if context.strip() else []
+    if not sentences:
+        return "I don't see anything in the policy that covers that, so I'd escalate."
+    q_words = {w for w in re.findall(r"[a-z0-9]+", question.lower()) if len(w) > 3}
+    best = max(sentences, key=lambda s: len({w for w in re.findall(r"[a-z0-9]+", s.lower())} & q_words))
+    return (
+        f"Per the policy: {best} "
+        "(mock grounded answer — set LLM_MODE=anthropic for a real model response.)"
+    )
 
 
 class MockProvider:
@@ -48,10 +80,15 @@ class MockProvider:
                 }
             )
         else:
-            content = (
-                f"[mock:{model}] Acknowledged: \"{last_user[:120]}\". "
-                "This is a deterministic mock response; set LLM_MODE=anthropic for real calls."
-            )
+            context = _extract_context(req.messages)
+            if context:
+                # Grounded chat: quote the retrieved policy context.
+                content = _grounded_answer(context, last_user)
+            else:
+                content = (
+                    f"[mock:{model}] Acknowledged: \"{last_user[:120]}\". "
+                    "This is a deterministic mock response; set LLM_MODE=anthropic for real calls."
+                )
 
         return ProviderResult(
             content=content,

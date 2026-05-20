@@ -57,6 +57,26 @@ def test_chat_judge_prompt_returns_json_verdict():
     assert 0.0 <= parsed["score"] <= 1.0
 
 
+def test_chat_grounded_answer_quotes_policy_context():
+    payload = _chat_payload(
+        messages=[
+            {
+                "role": "system",
+                "content": (
+                    "You are a support agent. Answer using the policy.\n\n"
+                    "POLICY CONTEXT:\n- Refunds are available within 30 days of purchase."
+                ),
+            },
+            {"role": "user", "content": "Can I get a refund after 25 days?"},
+        ]
+    )
+    resp = client.post("/v1/chat", json=payload)
+    assert resp.status_code == 200
+    content = resp.json()["content"]
+    assert "30 days" in content  # grounded in the provided context
+    assert "Acknowledged" not in content  # not the generic canned reply
+
+
 def test_chat_rejects_missing_agent_context():
     bad = {"messages": [{"role": "user", "content": "hi"}]}  # no agent block
     resp = client.post("/v1/chat", json=bad)

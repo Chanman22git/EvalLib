@@ -42,6 +42,9 @@ seed: ## Populate the Governance Store with demo data
 demo: ## Run the end-to-end demo
 	./scripts/demo.sh
 
+chat: ## Chat with the retrieval-grounded policy agent (CLI)
+	python3 scripts/policy_agent.py
+
 test: test-governance test-orchestrator ## Run all backend test suites
 
 test-governance: ## Run governance-api tests

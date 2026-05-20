@@ -115,6 +115,26 @@ Raw telemetry (including redacted PII) is also written to
 | [`services/ui`](services/ui) | Experience UI (React + TS + Tailwind + shadcn) |
 | [`otel-collector`](otel-collector) | OTLP ingestion, PII redaction, fan-out |
 
+## Talk to a grounded policy agent
+
+A retrieval-grounded agent makes the loop concrete: it answers customer questions
+using a real policy document (`kb/refund_policy.md`), routes every turn through the
+gateway (so it's traced), and auto-runs its mapped eval.
+
+```bash
+make up && make seed          # stack + demo data
+make chat                     # interactive REPL
+# or one-shot:
+python3 scripts/policy_agent.py -q "Can I get a refund 25 days after purchase?"
+```
+
+Each turn prints the grounded answer, the trace id, the eval verdict, and links to
+Phoenix + the EvalLib trace page. The agent and the eval judge retrieve from the
+**same** `kb/` document, so the judge grades against the exact policy text the
+agent was given. In mock mode the answer quotes the retrieved policy and the
+verdict is deterministic-but-arbitrary; set `LLM_MODE=anthropic` for real answers
+and meaningful verdicts.
+
 ## Documentation
 
 | Doc | What's in it |

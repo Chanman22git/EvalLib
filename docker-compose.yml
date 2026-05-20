@@ -113,6 +113,9 @@ services:
       GOVERNANCE_API_URL: http://governance-api:8001
       GATEWAY_URL: http://mock-gateway:8080
       PHOENIX_BASE_URL: http://phoenix:6006
+      KB_DIR: /app/kb
+    volumes:
+      - ./kb:/app/kb:ro
     ports:
       - "8002:8002"
     depends_on:
