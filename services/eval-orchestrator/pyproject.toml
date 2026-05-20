@@ -1,0 +1,32 @@
+[project]
+name = "evallib-eval-orchestrator"
+version = "0.1.0"
+description = "EvalLib eval orchestrator — runs evals on traces via arize-phoenix-evals and emits OTel eval events."
+requires-python = ">=3.11"
+# OTel pins here intentionally track the Phoenix ecosystem (newer than the
+# gateway/governance services), because arize-phoenix-evals depends on them.
+# Each service has its own image, so the version skew is isolated.
+dependencies = [
+    "fastapi==0.115.6",
+    "uvicorn[standard]==0.34.0",
+    "pydantic==2.10.4",
+    "pydantic-settings==2.7.1",
+    "httpx==0.28.1",
+    "arize-phoenix-evals==0.20.8",
+    "arize-phoenix-client==2.7.0",
+    "opentelemetry-api==1.42.0",
+    "opentelemetry-sdk==1.42.0",
+    "opentelemetry-exporter-otlp-proto-grpc==1.42.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest==8.3.4",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["src*"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
