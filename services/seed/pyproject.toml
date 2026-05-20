@@ -1,0 +1,13 @@
+[project]
+name = "evallib-seed"
+version = "0.1.0"
+description = "EvalLib seed data + demo helpers."
+requires-python = ">=3.11"
+dependencies = [
+    "httpx==0.28.1",
+    "pyyaml==6.0.2",
+]
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["*"]
