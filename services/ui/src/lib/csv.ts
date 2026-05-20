@@ -5,17 +5,19 @@ function escapeCell(value: unknown): string {
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 }
 
-export function toCsv(rows: Array<Record<string, unknown>>): string {
+// Accepts any array of plain objects (typed API rows assign to `object`).
+export function toCsv(rows: readonly object[]): string {
   if (!rows.length) return "";
-  const headers = Object.keys(rows[0]);
+  const records = rows as ReadonlyArray<Record<string, unknown>>;
+  const headers = Object.keys(records[0]);
   const lines = [headers.join(",")];
-  for (const row of rows) {
+  for (const row of records) {
     lines.push(headers.map((h) => escapeCell(row[h])).join(","));
   }
   return lines.join("\n");
 }
 
-export function downloadCsv(filename: string, rows: Array<Record<string, unknown>>): void {
+export function downloadCsv(filename: string, rows: readonly object[]): void {
   const blob = new Blob([toCsv(rows)], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");

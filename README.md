@@ -115,6 +115,18 @@ Raw telemetry (including redacted PII) is also written to
 | [`services/ui`](services/ui) | Experience UI (React + TS + Tailwind + shadcn) |
 | [`otel-collector`](otel-collector) | OTLP ingestion, PII redaction, fan-out |
 
+## Documentation
+
+| Doc | What's in it |
+|---|---|
+| [`docs/architecture.md`](docs/architecture.md) | Components, key decisions, data flow, ports |
+| [`docs/otel-conventions.md`](docs/otel-conventions.md) | Every OTel attribute we emit and why (GenAI semconv v1.37+) |
+| [`docs/governance-state-machine.md`](docs/governance-state-machine.md) | Eval lifecycle, approval guards, audit trail |
+| [`docs/demo-script.md`](docs/demo-script.md) | 5-minute walkthrough for all three audiences |
+| [`docs/acceptance-criteria.md`](docs/acceptance-criteria.md) | AC-1…AC-12 status with evidence |
+
+Each service also has its own `README.md` (see the table above).
+
 ## Make targets
 
 Run `make help` for the full list. Common ones: `setup`, `up`, `down`, `reset`,

@@ -88,15 +88,15 @@ export function Governance() {
         <Card className="mt-6">
           <CardHeader><CardTitle>Audit-ready exports</CardTitle></CardHeader>
           <CardContent className="flex flex-wrap gap-2">
-            <Button variant="outline" onClick={() => downloadCsv("agent-inventory.csv", agentList as never)}>
+            <Button variant="outline" onClick={() => downloadCsv("agent-inventory.csv", agentList)}>
               <Download className="h-4 w-4" /> Agent inventory
             </Button>
-            <Button variant="outline" onClick={() => downloadCsv("eval-inventory.csv", evalList as never)}>
+            <Button variant="outline" onClick={() => downloadCsv("eval-inventory.csv", evalList)}>
               <Download className="h-4 w-4" /> Eval inventory
             </Button>
             <Button
               variant="outline"
-              onClick={() => downloadCsv("eval-result-log.csv", (results.data ?? []) as never)}
+              onClick={() => downloadCsv("eval-result-log.csv", (results.data ?? []))}
               disabled={results.isLoading}
             >
               <Download className="h-4 w-4" /> Eval result log
