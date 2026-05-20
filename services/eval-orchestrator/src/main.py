@@ -4,6 +4,7 @@ import asyncio
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, HTTPException
+from fastapi.middleware.cors import CORSMiddleware
 
 from .config import settings
 from .executor import EvalNotRunnable, Executor
@@ -31,6 +32,14 @@ app = FastAPI(
     description="Runs evals on traces (offline + sampled-online) and emits OTel eval events.",
     version="0.1.0",
     lifespan=lifespan,
+)
+
+# POC: allow the browser UI (any origin) to call the orchestrator cross-origin.
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["*"],
 )
 
 
