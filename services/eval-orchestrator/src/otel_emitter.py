@@ -9,6 +9,8 @@ other signal.
 
 from __future__ import annotations
 
+import json
+
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 from opentelemetry.sdk.resources import Resource
@@ -20,6 +22,7 @@ from .config import settings
 from .schemas import EvalVerdict
 
 EVAL_EVENT_NAME = "gen_ai.evaluation.result"
+REGRESSION_EVENT_NAME = "enterprise.regression.detected"
 
 _tracer: trace.Tracer | None = None
 
@@ -89,3 +92,28 @@ def emit_evaluation_result(v: EvalVerdict, judge_provider: str = "gateway") -> N
         for key, value in attributes.items():
             span.set_attribute(key, value)
         span.add_event(EVAL_EVENT_NAME, attributes=attributes)
+
+
+def emit_regression_detected(
+    *,
+    agent_id: str,
+    eval_id: str,
+    baseline_score: float,
+    current_score: float,
+    delta: float,
+    candidate_causes: list[dict],
+) -> None:
+    """Emit an `enterprise.regression.detected` OTel event (FR-RD-3)."""
+    tracer = init_tracing()
+    with tracer.start_as_current_span(f"regression {eval_id}") as span:
+        attributes = {
+            "enterprise.agent.id": agent_id,
+            "enterprise.eval.id": eval_id,
+            "enterprise.regression.baseline_score": baseline_score,
+            "enterprise.regression.current_score": current_score,
+            "enterprise.regression.delta": delta,
+            "enterprise.regression.candidate_causes": json.dumps(candidate_causes),
+        }
+        for key, value in attributes.items():
+            span.set_attribute(key, value)
+        span.add_event(REGRESSION_EVENT_NAME, attributes=attributes)

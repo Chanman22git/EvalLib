@@ -45,8 +45,24 @@ class GovernanceClient:
     async def get_eval_by_pk(self, eval_pk: str) -> dict:
         return await self._get(f"/evals/{eval_pk}")
 
+    async def list_evals(self) -> list[dict]:
+        return await self._get("/evals")
+
     async def list_agents(self) -> list[dict]:
         return await self._get("/agents")
 
     async def post_eval_result(self, payload: dict) -> dict:
         return await self._post("/eval-results", payload)
+
+    # ── Regression detection support ────────────────────────────────────────
+    async def get_eval_results(self, params: dict) -> list[dict]:
+        return await self._get("/eval-results", params=params)
+
+    async def get_change_events(self, params: dict) -> list[dict]:
+        return await self._get("/change-events", params=params)
+
+    async def get_regression_alerts(self, params: dict | None = None) -> list[dict]:
+        return await self._get("/regression-alerts", params=params)
+
+    async def post_regression_alert(self, payload: dict) -> dict:
+        return await self._post("/regression-alerts", payload)

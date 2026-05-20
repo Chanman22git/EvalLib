@@ -22,5 +22,16 @@ class Settings(BaseSettings):
     sampling_enabled: bool = True
     sampling_interval_seconds: float = 30.0
 
+    # Regression detection job (FR-RD-1..3).
+    regression_enabled: bool = True
+    regression_interval_seconds: float = 900.0  # 15 minutes (PRD)
+    # Window defaults are POC-tuned for the seed data's per-day cadence: the
+    # "current" window is the most recent day and the baseline is the older
+    # healthy span (days 2–7 ago), so a sustained drop is detectable.
+    regression_current_window_hours: float = 24.0
+    regression_baseline_lookback_days: float = 7.0
+    regression_baseline_recent_cutoff_days: float = 2.0
+    regression_min_samples: int = 3
+
 
 settings = Settings()

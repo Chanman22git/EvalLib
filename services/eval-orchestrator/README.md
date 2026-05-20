@@ -39,6 +39,27 @@ file exporter (AC-8):
 grep gen_ai.evaluation.result otel-collector/output/otel-audit.jsonl | tail -1 | jq .
 ```
 
+## Regression detection (FR-RD-1..3)
+
+A background job (every 15 min, or `POST /detect-regressions` on demand) compares,
+per approved (agent, eval) pair, the **current** rolling window's mean score
+against an older **baseline** window. A regression triggers when the current mean
+is >2σ below baseline **or** drops >10 percentage points (`is_regression`).
+
+On trigger it:
+1. runs a **candidate-cause analysis** — the agent's change events in the last
+   48h, ranked by temporal proximity to the regression onset (`rank_candidate_causes`),
+2. persists a `regression_alert` (deduped against existing open alerts), and
+3. emits an `enterprise.regression.detected` OTel event.
+
+Windows are POC-tuned for the seed cadence (current = last 24h, baseline = days
+2–7 ago) and configurable via `REGRESSION_*` env vars. The detection math and
+cause ranking live in `regression_detector.py` for isolated unit testing.
+
+```bash
+grep enterprise.regression.detected otel-collector/output/otel-audit.jsonl | tail -1 | jq .
+```
+
 ## Design notes
 
 - **Phoenix calls are best-effort.** The authoritative outputs are the OTel event

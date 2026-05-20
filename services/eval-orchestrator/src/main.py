@@ -10,6 +10,7 @@ from .config import settings
 from .executor import EvalNotRunnable, Executor
 from .governance_client import GovernanceClient
 from .otel_emitter import init_tracing
+from .regression_job import regression_loop, run_regression_detection
 from .schemas import RunEvalRequest, RunEvalResponse, SampleRunResponse
 from .worker import run_sampling_pass, sampling_loop
 
@@ -17,13 +18,15 @@ from .worker import run_sampling_pass, sampling_loop
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     init_tracing(app)
-    task: asyncio.Task | None = None
+    tasks: list[asyncio.Task] = []
     if settings.sampling_enabled:
-        task = asyncio.create_task(sampling_loop())
+        tasks.append(asyncio.create_task(sampling_loop()))
+    if settings.regression_enabled:
+        tasks.append(asyncio.create_task(regression_loop()))
     try:
         yield
     finally:
-        if task is not None:
+        for task in tasks:
             task.cancel()
 
 
@@ -76,6 +79,12 @@ async def run_eval(req: RunEvalRequest) -> RunEvalResponse:
 async def sample_once() -> SampleRunResponse:
     """Trigger a single sampled-online pass on demand (used by the demo + tests)."""
     return await run_sampling_pass()
+
+
+@app.post("/detect-regressions")
+async def detect_regressions() -> dict:
+    """Trigger a single regression-detection pass on demand (FR-RD; demo + tests)."""
+    return await run_regression_detection()
 
 
 @app.post("/inline-eval", status_code=501)
