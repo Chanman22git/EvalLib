@@ -51,6 +51,14 @@ class GovernanceClient:
     async def list_agents(self) -> list[dict]:
         return await self._get("/agents")
 
+    async def resolve_agent(self, ref: str) -> dict | None:
+        """Look up an agent by uuid or by name (case-sensitive)."""
+        agents = await self.list_agents()
+        for a in agents:
+            if a["id"] == ref or a["name"] == ref:
+                return a
+        return None
+
     async def post_eval_result(self, payload: dict) -> dict:
         return await self._post("/eval-results", payload)
 

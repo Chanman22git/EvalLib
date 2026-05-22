@@ -9,7 +9,7 @@ from sqlalchemy.orm import Session
 
 from .. import audit, state_machine
 from ..database import get_db
-from ..models import CalibrationSet, Eval, EvalAgentMapping
+from ..models import Agent, CalibrationSet, Eval, EvalAgentMapping
 from ..schemas import (
     ActorBody,
     ApproveBody,
@@ -44,6 +44,7 @@ def create_eval(body: EvalCreate, db: Session = Depends(get_db)) -> Eval:
         owner_team=body.owner_team,
         owner_email=body.owner_email,
         expires_at=body.expires_at,
+        blocking=body.blocking,
     )
     db.add(ev)
     try:
@@ -54,10 +55,19 @@ def create_eval(body: EvalCreate, db: Session = Depends(get_db)) -> Eval:
             status_code=409,
             detail=f"Eval ({body.eval_id}, {body.version}) already exists",
         ) from exc
+
+    # Auto-create eval→agent mappings if requested. Unknown agent_ids => 404.
+    for agent_id in body.agent_ids:
+        if db.get(Agent, agent_id) is None:
+            db.rollback()
+            raise HTTPException(status_code=404, detail=f"Agent {agent_id} not found")
+        db.add(EvalAgentMapping(eval_id=ev.id, agent_id=agent_id, enabled=True, sample_rate=1.0))
+
     audit.record(
         db, actor=body.owner_email or "system", action="eval.create",
         entity_type="eval", entity_id=ev.id,
-        detail={"eval_id": ev.eval_id, "version": ev.version},
+        detail={"eval_id": ev.eval_id, "version": ev.version, "blocking": ev.blocking,
+                "attached_agents": [str(a) for a in body.agent_ids]},
     )
     db.commit()
     db.refresh(ev)

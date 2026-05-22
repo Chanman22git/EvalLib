@@ -73,6 +73,11 @@ export function EvalDetail() {
         description={e.criterion_description}
         actions={
           <div className="flex items-center gap-2">
+            {e.blocking && (
+              <Badge className="bg-verdict-fail/15 text-verdict-fail border-verdict-fail/30">
+                blocking
+              </Badge>
+            )}
             <ReviewStatusBadge status={e.review_status} />
             <JsonButton data={e} title="Eval JSON" />
           </div>

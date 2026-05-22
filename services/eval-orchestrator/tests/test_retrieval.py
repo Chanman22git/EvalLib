@@ -27,9 +27,11 @@ def test_retrieve_grounds_in_real_policy_doc(use_real_kb):
 
 
 def test_retrieve_ranks_relevant_chunk_first(use_real_kb):
-    chunks = retrieval.retrieve({"collection": "refund_policy", "top_k": 1}, "digital ebook download refund")
+    # "alexa" and "music store" only appear together in the 7-day exception
+    # for accidental Digital Music Store purchases, so that chunk should win.
+    chunks = retrieval.retrieve({"collection": "refund_policy", "top_k": 1}, "alexa music store")
     assert len(chunks) == 1
-    assert "digital" in chunks[0].lower()
+    assert "alexa" in chunks[0].lower()
 
 
 def test_retrieve_falls_back_when_doc_missing(monkeypatch):

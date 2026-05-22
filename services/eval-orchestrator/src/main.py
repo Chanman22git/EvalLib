@@ -11,7 +11,8 @@ from .executor import EvalNotRunnable, Executor
 from .governance_client import GovernanceClient
 from .otel_emitter import init_tracing
 from .regression_job import regression_loop, run_regression_detection
-from .schemas import RunEvalRequest, RunEvalResponse, SampleRunResponse
+from .schemas import RunEvalRequest, RunEvalResponse, SampleRunResponse, ScoreRequest, ScoreResponse
+from .suite import score_trace
 from .worker import run_sampling_pass, sampling_loop
 
 
@@ -79,6 +80,16 @@ async def run_eval(req: RunEvalRequest) -> RunEvalResponse:
 async def sample_once() -> SampleRunResponse:
     """Trigger a single sampled-online pass on demand (used by the demo + tests)."""
     return await run_sampling_pass()
+
+
+@app.post("/score", response_model=ScoreResponse)
+async def score(req: ScoreRequest) -> ScoreResponse:
+    """Run the agent's full approved+mapped suite on one trace and consolidate."""
+    try:
+        result = await score_trace(agent_ref=req.agent, trace=req.trace, eval_ids=req.eval_ids)
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ScoreResponse(**result)
 
 
 @app.post("/detect-regressions")

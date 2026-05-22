@@ -61,6 +61,46 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/score": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Score
+         * @description Run the agent's full approved+mapped suite on one trace and consolidate.
+         */
+        post: operations["score_score_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/detect-regressions": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Detect Regressions
+         * @description Trigger a single regression-detection pass on demand (FR-RD; demo + tests).
+         */
+        post: operations["detect_regressions_detect_regressions_post"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/inline-eval": {
         parameters: {
             query?: never;
@@ -85,6 +125,23 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        /** ConsolidatedScore */
+        ConsolidatedScore: {
+            /** Status */
+            status: string;
+            /** Mean Score */
+            mean_score: number;
+            /** Threshold */
+            threshold: number;
+            /** Pass Count */
+            pass_count: number;
+            /** Fail Count */
+            fail_count: number;
+            /** Blocking Failures */
+            blocking_failures: string[];
+            /** Reasons */
+            reasons: string[];
+        };
         /** EvalVerdict */
         EvalVerdict: {
             /** Trace Id */
@@ -143,6 +200,26 @@ export interface components {
             evaluated: number;
             /** Results */
             results?: components["schemas"]["EvalVerdict"][];
+        };
+        /** ScoreRequest */
+        ScoreRequest: {
+            /** Agent */
+            agent: string;
+            trace: components["schemas"]["TraceRef"];
+            /** Eval Ids */
+            eval_ids?: string[] | null;
+        };
+        /** ScoreResponse */
+        ScoreResponse: {
+            /** Agent Id */
+            agent_id: string | null;
+            /** Agent Name */
+            agent_name: string | null;
+            /** Trace Id */
+            trace_id: string;
+            /** Results */
+            results: components["schemas"]["EvalVerdict"][];
+            consolidated: components["schemas"]["ConsolidatedScore"];
         };
         /**
          * TraceRef
@@ -250,6 +327,59 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SampleRunResponse"];
+                };
+            };
+        };
+    };
+    score_score_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["ScoreRequest"];
+            };
+        };
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["ScoreResponse"];
+                };
+            };
+            /** @description Validation Error */
+            422: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["HTTPValidationError"];
+                };
+            };
+        };
+    };
+    detect_regressions_detect_regressions_post: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            /** @description Successful Response */
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": Record<string, never>;
                 };
             };
         };

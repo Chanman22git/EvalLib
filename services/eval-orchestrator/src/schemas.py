@@ -53,6 +53,31 @@ class SampleRunResponse(BaseModel):
     results: list[EvalVerdict] = Field(default_factory=list)
 
 
+# ── Suite scoring (agent's full approved+mapped suite on one trace) ─────────
+class ScoreRequest(BaseModel):
+    agent: str  # agent uuid or name
+    trace: TraceRef
+    eval_ids: list[str] | None = None  # optional subset
+
+
+class ConsolidatedScore(BaseModel):
+    status: str  # "PASS" | "FAIL"
+    mean_score: float
+    threshold: float
+    pass_count: int
+    fail_count: int
+    blocking_failures: list[str]
+    reasons: list[str]
+
+
+class ScoreResponse(BaseModel):
+    agent_id: str | None
+    agent_name: str | None
+    trace_id: str
+    results: list[EvalVerdict]
+    consolidated: ConsolidatedScore
+
+
 class JudgeOutput(BaseModel):
     verdict: str
     score: float

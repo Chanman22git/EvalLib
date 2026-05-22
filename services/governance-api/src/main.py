@@ -6,9 +6,25 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
+from sqlalchemy import text
+
 from .config import settings
 from .database import Base, engine
 from .otel import init_tracing
+
+
+def _ensure_columns() -> None:
+    """Idempotent in-place schema patches for the POC (avoids forcing a reseed).
+
+    Adds columns introduced by code without a full Alembic upgrade flow.
+    Postgres-only; SQLite tests start from fresh metadata via create_all.
+    """
+    if engine.dialect.name != "postgresql":
+        return
+    with engine.begin() as conn:
+        conn.execute(
+            text("ALTER TABLE evals ADD COLUMN IF NOT EXISTS blocking BOOLEAN NOT NULL DEFAULT FALSE")
+        )
 from .routers import (
     agents,
     audit_log,
@@ -28,6 +44,7 @@ async def lifespan(app: FastAPI):
     # (the test fixture manages its own schema).
     if settings.auto_create_tables and not os.getenv("PYTEST_CURRENT_TEST"):
         Base.metadata.create_all(bind=engine)
+        _ensure_columns()
     init_tracing(app)
     yield
 

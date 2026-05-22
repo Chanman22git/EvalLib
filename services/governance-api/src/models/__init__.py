@@ -79,6 +79,9 @@ class Eval(Base):
     review_status: Mapped[str] = mapped_column(String, default="draft", index=True)
     approved_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
     expires_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), default=None)
+    # If True, this eval failing causes the agent's whole suite to FAIL
+    # regardless of the mean score. Set at creation; immutable once approved.
+    blocking: Mapped[bool] = mapped_column(Boolean, default=False)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow

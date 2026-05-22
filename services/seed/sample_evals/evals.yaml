@@ -19,6 +19,7 @@
   approver_email: ts-approver@example.com
   calibration: pii_calibration
   target_status: approved
+  blocking: true
 
 - eval_id: hallucination_groundedness
   version: 1.0.0
@@ -60,6 +61,7 @@
   approver_email: cs-approver@example.com
   calibration: refund_policy_calibration
   target_status: approved
+  blocking: true
 
 - eval_id: tool_use_correctness
   version: 1.0.0

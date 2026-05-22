@@ -33,5 +33,9 @@ class Settings(BaseSettings):
     regression_baseline_recent_cutoff_days: float = 2.0
     regression_min_samples: int = 3
 
+    # Consolidated suite verdict: PASS only if mean score >= this threshold AND
+    # no blocking eval failed (the verdict's `passed` is true).
+    suite_pass_threshold: float = 0.75
+
 
 settings = Settings()

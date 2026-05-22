@@ -685,6 +685,13 @@ export interface components {
             owner_email: string;
             /** Expires At */
             expires_at?: string | null;
+            /**
+             * Blocking
+             * @default false
+             */
+            blocking: boolean;
+            /** Agent Ids */
+            agent_ids?: string[];
         };
         /** EvalOut */
         EvalOut: {
@@ -729,6 +736,8 @@ export interface components {
             approved_at: string | null;
             /** Expires At */
             expires_at: string | null;
+            /** Blocking */
+            blocking: boolean;
             /**
              * Created At
              * Format: date-time

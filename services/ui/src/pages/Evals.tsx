@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 
 import { PageHeader } from "@/components/PageHeader";
 import { ReviewStatusBadge } from "@/components/StatusBadge";
+import { Badge } from "@/components/ui/badge";
 import { ErrorState, LoadingRows } from "@/components/states";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -25,7 +26,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { useCreateEval, useEvals } from "@/api/hooks";
+import { useAgents, useCreateEval, useEvals } from "@/api/hooks";
 import type { EvalCreate } from "@/api/types";
 import { formatPct } from "@/lib/format";
 
@@ -90,6 +91,11 @@ export function Evals() {
                       <Link to={`/evals/${e.id}`} className="font-medium text-primary hover:underline">
                         {e.eval_id}
                       </Link>
+                      {e.blocking && (
+                        <Badge className="ml-2 bg-verdict-fail/15 text-verdict-fail border-verdict-fail/30">
+                          blocking
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="num text-muted-foreground">{e.version}</TableCell>
                     <TableCell className="max-w-sm truncate text-muted-foreground" title={e.criterion_description}>
@@ -122,6 +128,7 @@ export function Evals() {
 function CreateEvalDialog() {
   const [open, setOpen] = React.useState(false);
   const create = useCreateEval();
+  const agents = useAgents({ status: "active" });
   const [form, setForm] = React.useState<EvalCreate>({
     eval_id: "",
     version: "1.0.0",
@@ -131,8 +138,19 @@ function CreateEvalDialog() {
     agreement_threshold: 0.75,
     owner_team: "",
     owner_email: "",
+    blocking: false,
+    agent_ids: [],
   });
   const set = (k: keyof EvalCreate, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
+
+  const toggleAgent = (id: string) =>
+    setForm((f) => {
+      const current = f.agent_ids ?? [];
+      return {
+        ...f,
+        agent_ids: current.includes(id) ? current.filter((x) => x !== id) : [...current, id],
+      };
+    });
 
   const submit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -201,6 +219,40 @@ function CreateEvalDialog() {
               <Input id="oemail" type="email" value={form.owner_email ?? ""} onChange={(e) => set("owner_email", e.target.value)} />
             </div>
           </div>
+
+          <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-2 text-sm">
+            <input
+              type="checkbox"
+              checked={form.blocking ?? false}
+              onChange={(e) => set("blocking", e.target.checked)}
+              className="mt-0.5"
+            />
+            <span>
+              <span className="font-medium">Blocking</span> — if this eval fails for a trace, the
+              agent's whole suite fails (regardless of the mean).
+            </span>
+          </label>
+
+          <div className="grid gap-1.5">
+            <Label>Attach to agents</Label>
+            <div className="grid max-h-32 grid-cols-1 gap-1 overflow-y-auto rounded-md border bg-muted/30 p-2 text-sm sm:grid-cols-2">
+              {(agents.data ?? []).map((a) => (
+                <label key={a.id} className="flex items-center gap-2">
+                  <input
+                    type="checkbox"
+                    checked={(form.agent_ids ?? []).includes(a.id)}
+                    onChange={() => toggleAgent(a.id)}
+                  />
+                  <span>{a.name}</span>
+                  <span className="ml-auto text-xs text-muted-foreground">{a.criticality}</span>
+                </label>
+              ))}
+              {!agents.data?.length && (
+                <span className="text-xs text-muted-foreground">No agents registered.</span>
+              )}
+            </div>
+          </div>
+
           {create.isError && <ErrorState error={create.error} />}
           <Button type="submit" disabled={create.isPending}>
             {create.isPending ? "Creating…" : "Create eval (as draft)"}

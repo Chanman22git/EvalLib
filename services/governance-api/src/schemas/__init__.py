@@ -99,6 +99,10 @@ class EvalCreate(BaseModel):
     owner_team: str = "unassigned"
     owner_email: str = ""
     expires_at: datetime | None = None
+    # If True, a failure of this eval makes the agent's whole suite FAIL.
+    blocking: bool = False
+    # Optional: auto-create eval→agent mappings at creation time.
+    agent_ids: list[uuid.UUID] = Field(default_factory=list)
 
 
 class EvalUpdate(BaseModel):
@@ -135,6 +139,7 @@ class EvalOut(ORMModel):
     review_status: str
     approved_at: datetime | None
     expires_at: datetime | None
+    blocking: bool
     created_at: datetime
     updated_at: datetime
 

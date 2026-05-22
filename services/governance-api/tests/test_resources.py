@@ -101,6 +101,33 @@ def test_calibration_set_missing_404(client):
     assert resp.status_code == 404
 
 
+def test_create_eval_with_agent_ids_auto_creates_mappings(client):
+    agent = client.post("/agents", json={"name": "a-suite", "criticality": "low"}).json()
+    resp = client.post(
+        "/evals",
+        json={
+            "eval_id": "attached_demo",
+            "version": "1.0.0",
+            "blocking": True,
+            "agent_ids": [agent["id"]],
+        },
+    )
+    assert resp.status_code == 201
+    ev = resp.json()
+    assert ev["blocking"] is True
+    mappings = client.get("/eval-agent-mapping", params={"eval_id": ev["id"]}).json()
+    assert len(mappings) == 1
+    assert mappings[0]["agent_id"] == agent["id"]
+
+
+def test_create_eval_with_unknown_agent_id_404(client):
+    resp = client.post(
+        "/evals",
+        json={"eval_id": "bad_attach", "agent_ids": [str(uuid.uuid4())]},
+    )
+    assert resp.status_code == 404
+
+
 def test_eval_result_with_unknown_agent_id_is_stored_unattributed(client):
     # A stale agent_id (e.g. after a reseed) must not drop the eval result.
     resp = client.post(

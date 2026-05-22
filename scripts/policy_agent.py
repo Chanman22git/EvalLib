@@ -135,6 +135,18 @@ def run_eval(agent: dict, eval_id: str, question: str, answer: str, trace_id: st
     return post_json(ORCHESTRATOR + "/run-eval", body)
 
 
+def score_suite(agent: dict, question: str, answer: str, trace_id: str, span_id: str):
+    """Run the agent's full approved+mapped eval suite and return the consolidated scorecard."""
+    body = {
+        "agent": agent.get("id") or agent["name"],
+        "trace": {
+            "trace_id": trace_id, "span_id": span_id,
+            "input": question, "output": answer,
+        },
+    }
+    return post_json(ORCHESTRATOR + "/score", body)
+
+
 # ── presentation ─────────────────────────────────────────────────────────────
 C_DIM = "\033[2m"; C_BOLD = "\033[1m"; C_CYAN = "\033[36m"; C_GREEN = "\033[32m"
 C_YELLOW = "\033[33m"; C_RED = "\033[31m"; C_RESET = "\033[0m"
@@ -143,7 +155,32 @@ TONE = {"compliant": C_GREEN, "grounded": C_GREEN, "helpful": C_GREEN, "safe": C
         "ambiguous": C_YELLOW, "non_compliant": C_RED, "judge_error": C_RED}
 
 
-def handle(agent: dict, chunks: list, question: str, eval_id: Optional[str], top_k: int) -> None:
+def _print_scorecard(scorecard: dict) -> None:
+    """Pretty-print a /score response."""
+    rows = scorecard.get("results", [])
+    if rows:
+        # Per-eval lines (sorted: failures first, then by score ascending so the
+        # weakest stand out).
+        rows = sorted(rows, key=lambda v: (v.get("passed", False), v.get("score", 0)))
+        width = max(len(v["eval_id"]) for v in rows)
+        for v in rows:
+            tone = TONE.get(v["verdict"], C_RESET)
+            print("  %-*s  %s%-14s%s  %.2f  %s"
+                  % (width, v["eval_id"], tone, v["verdict"], C_RESET, v["score"],
+                     (v["reasoning"] or "")[:140]))
+    c = scorecard.get("consolidated", {}) or {}
+    status = c.get("status", "FAIL")
+    status_color = C_GREEN if status == "PASS" else C_RED
+    print("  %s%sSUITE %s%s  ·  mean %.2f / %.2f  ·  %d passed, %d failed"
+          % (C_BOLD, status_color, status, C_RESET,
+             c.get("mean_score", 0.0), c.get("threshold", 0.75),
+             c.get("pass_count", 0), c.get("fail_count", 0)))
+    for reason in c.get("reasons", []):
+        print("    - %s" % reason)
+
+
+def handle(agent: dict, chunks: list, question: str, single_eval: Optional[str],
+           no_eval: bool, top_k: int) -> None:
     resp = ask(agent, chunks, question, top_k)
     answer, trace_id, span_id = resp["content"], resp["trace_id"], resp["span_id"]
 
@@ -151,15 +188,18 @@ def handle(agent: dict, chunks: list, question: str, eval_id: Optional[str], top
     print("%s  retrieved %d policy passage(s); trace %s%s"
           % (C_DIM, len(resp["_context"]), trace_id[:12] + "…", C_RESET))
 
-    if eval_id:
+    if not no_eval:
         try:
-            result = run_eval(agent, eval_id, question, answer, trace_id, span_id)
-            v = result["results"][0]
-            tone = TONE.get(v["verdict"], C_RESET)
-            print("  eval %s%s%s: %s%s%s (score %.2f) — %s"
-                  % (C_BOLD, eval_id, C_RESET, tone, v["verdict"], C_RESET, v["score"], v["reasoning"]))
+            if single_eval:
+                result = run_eval(agent, single_eval, question, answer, trace_id, span_id)
+                v = result["results"][0]
+                tone = TONE.get(v["verdict"], C_RESET)
+                print("  eval %s%s%s: %s%s%s (score %.2f) — %s"
+                      % (C_BOLD, single_eval, C_RESET, tone, v["verdict"], C_RESET, v["score"], v["reasoning"]))
+            else:
+                _print_scorecard(score_suite(agent, question, answer, trace_id, span_id))
         except urllib.error.HTTPError as e:
-            print("%s  eval skipped: %s (is the eval approved + mapped? run `make seed`)%s"
+            print("%s  eval skipped: %s (is the eval approved + attached?)%s"
                   % (C_DIM, e, C_RESET))
 
     print("%s  Phoenix: %s/projects/default   |   EvalLib: %s/traces/%s%s\n"
@@ -170,24 +210,25 @@ def main() -> None:
     p = argparse.ArgumentParser(description="Retrieval-grounded policy agent (demo).")
     p.add_argument("-q", "--question", help="ask one question and exit")
     p.add_argument("--agent", default="customer-support-refund")
-    p.add_argument("--eval", dest="eval_id", default="refund_policy_compliance")
+    p.add_argument("--single", dest="single_eval", default=None,
+                   help="run only this one eval (default: run the agent's full approved suite)")
     p.add_argument("--collection", default="refund_policy")
     p.add_argument("--top-k", type=int, default=3)
-    p.add_argument("--no-eval", action="store_true", help="don't run the eval after answering")
+    p.add_argument("--no-eval", action="store_true", help="don't run any eval after answering")
     args = p.parse_args()
 
-    eval_id = None if args.no_eval else args.eval_id
     agent = fetch_agent(args.agent)
     chunks = load_chunks(args.collection)
 
-    print("%sPolicy agent ready%s — %s · grounding on kb/%s.md (%d passages)"
-          % (C_BOLD, C_RESET, agent["name"], args.collection, len(chunks)))
+    mode = "single eval " + args.single_eval if args.single_eval else "agent suite"
+    print("%sPolicy agent ready%s — %s · grounding on kb/%s.md (%d passages) · %s"
+          % (C_BOLD, C_RESET, agent["name"], args.collection, len(chunks), mode))
     if agent["id"] is None:
         print("%s  note: agent '%s' not found in the registry; run `make seed`. "
               "Answering anyway with default metadata.%s" % (C_YELLOW, args.agent, C_RESET))
 
     if args.question:
-        handle(agent, chunks, args.question, eval_id, args.top_k)
+        handle(agent, chunks, args.question, args.single_eval, args.no_eval, args.top_k)
         return
 
     print("Type a customer question (or 'quit').\n")
@@ -202,7 +243,7 @@ def main() -> None:
         if q.lower() in {"quit", "exit", "q"}:
             break
         try:
-            handle(agent, chunks, q, eval_id, args.top_k)
+            handle(agent, chunks, q, args.single_eval, args.no_eval, args.top_k)
         except urllib.error.URLError as e:
             print("%s  gateway/orchestrator unreachable: %s (is the stack up? `make up`)%s"
                   % (C_RED, e, C_RESET))

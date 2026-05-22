@@ -99,6 +99,76 @@ export function AgentDetail() {
         </Card>
       </div>
 
+      {(() => {
+        const rows = (mappings.data ?? []).map((m) => {
+          const ev = evalById.get(m.eval_id);
+          const agg = ev ? aggByEvalId.get(ev.eval_id) : undefined;
+          return { mapping: m, ev, agg };
+        });
+        const scored = rows.filter((r) => r.agg);
+        const mean = scored.length
+          ? scored.reduce((sum, r) => sum + (r.agg?.avg_score ?? 0), 0) / scored.length
+          : null;
+        const blockingFailures = rows.filter(
+          (r) => r.ev?.blocking && r.agg && r.agg.pass_rate < 1,
+        );
+        const threshold = 0.75;
+        const overallPass =
+          mean != null && mean >= threshold && blockingFailures.length === 0;
+        const meanColor =
+          mean == null
+            ? "text-muted-foreground"
+            : overallPass
+            ? "text-verdict-pass"
+            : "text-verdict-fail";
+        return (
+          <Card className="mt-6">
+            <CardHeader className="flex-row items-center justify-between">
+              <CardTitle>EvalLib score</CardTitle>
+              {mean != null && (
+                <Badge
+                  className={
+                    overallPass
+                      ? "bg-verdict-pass/15 text-verdict-pass border-verdict-pass/30"
+                      : "bg-verdict-fail/15 text-verdict-fail border-verdict-fail/30"
+                  }
+                >
+                  {overallPass ? "PASS" : "FAIL"}
+                </Badge>
+              )}
+            </CardHeader>
+            <CardContent>
+              {mean == null ? (
+                <p className="text-sm text-muted-foreground">
+                  No eval results yet — ask a question through the agent to populate the score.
+                </p>
+              ) : (
+                <div className="flex flex-wrap items-baseline gap-6">
+                  <div>
+                    <div className={`text-4xl font-semibold tabular-nums ${meanColor}`}>
+                      {formatPct(mean, 0)}
+                    </div>
+                    <div className="text-xs text-muted-foreground">
+                      mean of {scored.length} attached eval(s) · threshold {formatPct(threshold, 0)}
+                    </div>
+                  </div>
+                  {blockingFailures.length > 0 && (
+                    <div className="text-sm">
+                      <div className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                        Blocking failures
+                      </div>
+                      <div className="text-verdict-fail">
+                        {blockingFailures.map((r) => r.ev?.eval_id).join(", ")}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        );
+      })()}
+
       <Card className="mt-6">
         <CardHeader>
           <CardTitle>Attached evals</CardTitle>
@@ -131,6 +201,11 @@ export function AgentDetail() {
                           </Link>
                         ) : (
                           shortId(m.eval_id)
+                        )}
+                        {ev?.blocking && (
+                          <Badge className="ml-2 bg-verdict-fail/15 text-verdict-fail border-verdict-fail/30">
+                            blocking
+                          </Badge>
                         )}
                       </TableCell>
                       <TableCell className="text-muted-foreground">{ev?.review_status ?? "—"}</TableCell>

@@ -29,6 +29,9 @@ export type AuditLogEntry = GovSchemas["AuditLogOut"];
 export type RunEvalRequest = OrchSchemas["RunEvalRequest"];
 export type RunEvalResponse = OrchSchemas["RunEvalResponse"];
 export type EvalVerdict = OrchSchemas["EvalVerdict"];
+export type ScoreRequest = OrchSchemas["ScoreRequest"];
+export type ScoreResponse = OrchSchemas["ScoreResponse"];
+export type ConsolidatedScore = OrchSchemas["ConsolidatedScore"];
 
 export type ReviewStatus = "draft" | "in_review" | "approved" | "deprecated" | "expired";
 export type Criticality = "low" | "medium" | "high" | "critical";
