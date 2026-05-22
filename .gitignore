@@ -3,6 +3,9 @@
 *.env
 !.env.example
 
+# Source policy documents (the converted .md is committed, not the raw source)
+kb/*.pdf
+
 # Python
 __pycache__/
 *.py[cod]
