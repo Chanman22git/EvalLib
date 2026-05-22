@@ -8,7 +8,7 @@ from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..models import EvalResult
+from ..models import Agent, EvalResult
 from ..schemas import EvalResultAggregate, EvalResultCreate, EvalResultOut
 
 router = APIRouter(prefix="/eval-results", tags=["eval-results"])
@@ -19,6 +19,13 @@ PASS_VERDICTS = {"compliant", "correct", "grounded", "pass", "passed", "helpful"
 
 @router.post("", response_model=EvalResultOut, status_code=201)
 def create_eval_result(body: EvalResultCreate, db: Session = Depends(get_db)) -> EvalResult:
+    # eval_results is a fast-query mirror; an unknown agent_id (e.g. a stale id
+    # after a reseed) must not cause a FK violation that drops the result.
+    # Keep the link when the agent exists, otherwise store it unattributed.
+    agent_id = body.agent_id
+    if agent_id is not None and db.get(Agent, agent_id) is None:
+        agent_id = None
+
     result = EvalResult(
         trace_id=body.trace_id,
         span_id=body.span_id,
@@ -28,7 +35,7 @@ def create_eval_result(body: EvalResultCreate, db: Session = Depends(get_db)) ->
         score=body.score,
         reasoning=body.reasoning,
         judge_model=body.judge_model,
-        agent_id=body.agent_id,
+        agent_id=agent_id,
     )
     if body.evaluated_at is not None:
         result.evaluated_at = body.evaluated_at

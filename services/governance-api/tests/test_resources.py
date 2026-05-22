@@ -99,3 +99,19 @@ def test_regression_alert_lifecycle(client):
 def test_calibration_set_missing_404(client):
     resp = client.get(f"/calibration-sets/{uuid.uuid4()}")
     assert resp.status_code == 404
+
+
+def test_eval_result_with_unknown_agent_id_is_stored_unattributed(client):
+    # A stale agent_id (e.g. after a reseed) must not drop the eval result.
+    resp = client.post(
+        "/eval-results",
+        json={
+            "trace_id": "trace-stale",
+            "eval_id": "refund_policy_compliance",
+            "verdict": "compliant",
+            "score": 0.9,
+            "agent_id": str(uuid.uuid4()),  # does not exist
+        },
+    )
+    assert resp.status_code == 201
+    assert resp.json()["agent_id"] is None

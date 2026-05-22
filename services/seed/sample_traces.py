@@ -50,14 +50,17 @@ def generate_eval_results(
     now = datetime.now(timezone.utc)
     results: list[dict] = []
     for day in range(days):
-        day_start = now - timedelta(days=days - 1 - day)
+        days_ago = (days - 1) - day  # day=days-1 -> most recent (0 days ago)
         # Healthy baseline ~0.90; injected regression drops to ~0.75 from day 5.
         base = 0.90
         if regression and day >= 5:
             base = 0.75
         for _ in range(per_day):
-            ts = day_start + timedelta(
-                hours=random.randint(0, 23), minutes=random.randint(0, 59)
+            # Always in the PAST (>=30 min ago): subtract a within-day offset from
+            # the day's anchor so seed rows never future-date and a live question
+            # always sorts to the top of the trace list.
+            ts = now - timedelta(
+                days=days_ago, hours=random.uniform(0.5, 23.5), minutes=random.uniform(0, 59)
             )
             score = _score(base)
             inp, out = random.choice(_SAMPLE_IO)
