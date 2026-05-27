@@ -2,6 +2,14 @@
 
 **An enterprise governance, evaluation, and experience layer for AI agents.**
 
+> **Try it live:** the UI is hosted at <https://chanman22git.github.io/EvalLib/>.
+> It's a static shell — the FastAPI services run on your machine. Clone this
+> repo, `docker compose up`, then refresh the hosted page. Your browser will
+> reach the backends at `http://localhost:8001` (`8002`, `6006`); modern
+> browsers exempt localhost from mixed-content blocking, and the services ship
+> with permissive CORS, so no extra setup is needed. For the chat agent, use
+> `make chat` in your terminal.
+
 EvalLib is *not* a re-implementation of Phoenix, Datadog, or Splunk. It is the
 governance and control layer that sits **above** them, anchored on the enterprise
 model gateway. A live LLM call flows through the gateway → a trace is captured →

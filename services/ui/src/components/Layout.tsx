@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { NavLink, Outlet } from "react-router-dom";
 
+import { BackendStatusBanner } from "@/components/BackendStatusBanner";
 import { cn } from "@/lib/utils";
 
 const NAV = [
@@ -55,8 +56,9 @@ export function Layout() {
         </nav>
         <div className="border-t px-5 py-3 text-xs text-muted-foreground">POC · single-tenant</div>
       </aside>
-      <main className="flex-1 overflow-y-auto">
-        <div className="mx-auto max-w-7xl p-6">
+      <main className="flex flex-1 flex-col overflow-y-auto">
+        <BackendStatusBanner />
+        <div className="mx-auto w-full max-w-7xl p-6">
           <Outlet />
         </div>
       </main>
