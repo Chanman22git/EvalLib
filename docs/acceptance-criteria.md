@@ -18,8 +18,10 @@ Commands to reproduce each are included.
 | **AC-8** | Every eval result emitted to OTel; inspectable in the file exporter; conforms to schema | ✅ | `gen_ai.evaluation.result` and `enterprise.regression.detected` events present in `otel-collector/output/otel-audit.jsonl` with the documented attributes. |
 | **AC-9** | Approving without calibration / below threshold returns 400; state cannot advance | ✅ | Live: `400 "no calibration set attached"`, then `400 "agreement 0.5 is below threshold 0.75"`. |
 | **AC-10** | All endpoints have OpenAPI docs at `/docs`; UI consumes generated TS types | ✅ | `/openapi.json` returns 200 on :8001/:8002/:8080; UI types generated into `src/api/*.gen.ts` via `npm run gen:types`. |
-| **AC-11** | Backend `pytest` passes; frontend `vitest` passes | ✅ | governance 17, mock-gateway 5, eval-orchestrator 22, UI vitest 4 — **48 tests pass** (in-container + locally). |
+| **AC-11** | Backend `pytest` passes; frontend `vitest` passes | ✅ | governance 22, mock-gateway 6, eval-orchestrator 33, UI vitest 6 — **67 tests pass** (in-container + locally). |
 | **AC-12** | README takes a new engineer from zero to "I see eval results in the UI" in < 15 min | ✅ | `make setup && make up && make seed` (or `./scripts/demo.sh`), then open :3000. See [demo-script.md](demo-script.md). |
+| **AC-13** | Evals carry a `turn`/`session` scope; turn scoring excludes session evals and vice-versa | ✅ | `POST /evals` round-trips `scope`; `score_trace` runs only turn-scoped, `score_session` only session-scoped (orchestrator `test_suite.py`). Seed approves `multi_turn_coherence` + `resolution` as session-scoped. |
+| **AC-14** | A multi-turn conversation is grouped and scored at the session level | ✅ | Gateway stamps `session.id` per turn; `POST /score-session` builds a transcript and scores the session suite; every `eval_result` carries `session_id`; UI **Conversations** view groups the thread. |
 
 ## Reproduce the headline checks
 
@@ -29,8 +31,16 @@ docker compose ps
 
 # AC-2 — seed counts
 curl -s localhost:8001/agents | jq length          # 5
-curl -s localhost:8001/evals  | jq length           # 8
+curl -s localhost:8001/evals  | jq length           # 9
 curl -s 'localhost:8001/eval-results?limit=2000' | jq length   # 200+
+
+# AC-13/AC-14 — session-scoped evals + conversation scoring
+curl -s localhost:8001/evals | jq '[.[]|select(.scope=="session")]|map(.eval_id)'  # multi_turn_coherence, resolution
+curl -s -X POST localhost:8002/score-session -H 'content-type: application/json' -d '{
+  "agent":"customer-support-refund",
+  "session":{"session_id":"demo-sess","turns":[
+    {"trace_id":"t1","input":"refund after 25 days?","output":"Within the 30-day window, yes."},
+    {"trace_id":"t2","input":"and digital goods?","output":"I will escalate that."}]}}' | jq '{session_id,turn_count,status:.consolidated.status}'
 
 # AC-7 — live regression detection
 curl -s -X POST localhost:8002/detect-regressions | jq '{checked,created}'

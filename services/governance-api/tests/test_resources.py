@@ -120,6 +120,43 @@ def test_create_eval_with_agent_ids_auto_creates_mappings(client):
     assert mappings[0]["agent_id"] == agent["id"]
 
 
+def test_eval_scope_defaults_to_turn_and_round_trips(client):
+    # Default scope is "turn".
+    default = client.post("/evals", json={"eval_id": "turn_default", "version": "1.0.0"}).json()
+    assert default["scope"] == "turn"
+
+    # Explicit session scope round-trips on read.
+    session = client.post(
+        "/evals",
+        json={"eval_id": "coherence_demo", "version": "1.0.0", "scope": "session"},
+    ).json()
+    assert session["scope"] == "session"
+    fetched = client.get(f"/evals/{session['id']}").json()
+    assert fetched["scope"] == "session"
+
+
+def test_eval_result_session_id_round_trips_and_filters(client):
+    agent = _agent(client)
+    # One session-scoped row (trace_id == session_id) + two turn rows on the same session.
+    rows = [
+        {"trace_id": "sess-1", "session_id": "sess-1", "eval_id": "multi_turn_coherence"},
+        {"trace_id": "turn-a", "session_id": "sess-1", "eval_id": "refund_policy_compliance"},
+        {"trace_id": "turn-b", "session_id": "sess-1", "eval_id": "refund_policy_compliance"},
+        {"trace_id": "turn-c", "session_id": "sess-2", "eval_id": "refund_policy_compliance"},
+    ]
+    for row in rows:
+        r = client.post(
+            "/eval-results",
+            json={**row, "verdict": "compliant", "score": 0.9, "agent_id": agent["id"]},
+        )
+        assert r.status_code == 201
+        assert r.json()["session_id"] == row["session_id"]
+
+    by_session = client.get("/eval-results", params={"session_id": "sess-1"}).json()
+    assert len(by_session) == 3
+    assert {r["trace_id"] for r in by_session} == {"sess-1", "turn-a", "turn-b"}
+
+
 def test_create_eval_with_unknown_agent_id_404(client):
     resp = client.post(
         "/evals",

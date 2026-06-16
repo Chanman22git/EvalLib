@@ -37,6 +37,11 @@ ENTERPRISE_AGENT_CRITICALITY = "enterprise.agent.criticality"
 ENTERPRISE_AGENT_DATA_CLASSIFICATION = "enterprise.agent.data_classification"
 ENTERPRISE_BUSINESS_UNIT = "enterprise.business_unit"
 
+# Conversation/thread grouping. `session.id` is the key Phoenix uses to collapse
+# a multi-turn conversation into one thread; mirrored under enterprise.* too.
+SESSION_ID = "session.id"
+ENTERPRISE_SESSION_ID = "enterprise.session.id"
+
 _tracer: trace.Tracer | None = None
 
 
@@ -104,6 +109,9 @@ def gen_ai_span(req: ChatRequest, model: str) -> Iterator[trace.Span]:
         span.set_attribute(GEN_AI_REQUEST_MODEL, model)
         span.set_attribute(GEN_AI_REQUEST_TEMPERATURE, req.temperature)
         span.set_attribute(GEN_AI_REQUEST_MAX_TOKENS, req.max_tokens)
+        if req.session_id:
+            span.set_attribute(SESSION_ID, req.session_id)
+            span.set_attribute(ENTERPRISE_SESSION_ID, req.session_id)
         for key, value in _agent_attributes(req.agent).items():
             span.set_attribute(key, value)
         if settings.otel_instrumentation_genai_capture_message_content:

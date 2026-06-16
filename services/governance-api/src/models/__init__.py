@@ -82,6 +82,9 @@ class Eval(Base):
     # If True, this eval failing causes the agent's whole suite to FAIL
     # regardless of the mean score. Set at creation; immutable once approved.
     blocking: Mapped[bool] = mapped_column(Boolean, default=False)
+    # Evaluation granularity: "turn" judges one trace/turn; "session" judges a
+    # whole conversation transcript. Drives which suite path picks the eval up.
+    scope: Mapped[str] = mapped_column(String, default="turn", index=True)
     created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), default=_utcnow)
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), default=_utcnow, onupdate=_utcnow
@@ -130,6 +133,9 @@ class EvalResult(Base):
     id: Mapped[uuid.UUID] = mapped_column(Uuid, primary_key=True, default=_uuid)
     trace_id: Mapped[str] = mapped_column(String, index=True)
     span_id: Mapped[str | None] = mapped_column(String, default=None)
+    # Conversation grouping. Set on every result so per-turn and session-scoped
+    # verdicts can be grouped into one thread in the UI. Null for legacy rows.
+    session_id: Mapped[str | None] = mapped_column(String, default=None, index=True)
     eval_id: Mapped[str] = mapped_column(String, index=True)
     eval_version: Mapped[str] = mapped_column(String, default="1.0.0")
     verdict: Mapped[str] = mapped_column(String, default="")

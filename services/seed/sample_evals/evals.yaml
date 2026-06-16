@@ -129,17 +129,36 @@
 
 - eval_id: multi_turn_coherence
   version: 1.0.0
-  criterion_description: Multi-turn responses must stay coherent and consistent.
+  scope: session
+  criterion_description: Across the whole conversation the agent stays coherent and consistent — no contradicting itself or losing track of earlier turns.
   evaluator_type: llm_as_judge
   judge_config: {model: claude-sonnet-4-6, temperature: 0.0}
   prompt_template: |
-    Judge multi-turn coherence. Criterion: {criterion}
-    Conversation: {input}
-    Latest output: {output}
+    Judge multi-turn coherence over an entire conversation. Criterion: {criterion}
+    Full conversation transcript: {input}
+    Final agent turn: {output}
     Return JSON: verdict (compliant|ambiguous|non_compliant), score, reasoning, passed.
   output_schema: {required: [verdict, score]}
   agreement_threshold: 0.75
   execution_modes: {offline: true, sampled_online: false}
   owner_team: product
   owner_email: product-owner@example.com
-  target_status: draft
+  target_status: approved
+
+- eval_id: resolution
+  version: 1.0.0
+  scope: session
+  criterion_description: The conversation reached a clear resolution — the customer's request was answered or properly escalated, not left hanging.
+  evaluator_type: llm_as_judge
+  judge_config: {model: claude-sonnet-4-6, temperature: 0.0}
+  prompt_template: |
+    Judge whether the conversation resolved the customer's need. Criterion: {criterion}
+    Full conversation transcript: {input}
+    Final agent turn: {output}
+    Return JSON: verdict (compliant|ambiguous|non_compliant), score, reasoning, passed.
+  output_schema: {required: [verdict, score]}
+  agreement_threshold: 0.75
+  execution_modes: {offline: true, sampled_online: false}
+  owner_team: product
+  owner_email: product-owner@example.com
+  target_status: approved

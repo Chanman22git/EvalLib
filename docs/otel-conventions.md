@@ -24,6 +24,7 @@ Emitted once per LLM call as a `CLIENT` span named `<operation> <model>`.
 | `gen_ai.response.finish_reasons` | `["stop"]` | array |
 | `gen_ai.usage.input_tokens` | `16` | |
 | `gen_ai.usage.output_tokens` | `46` | |
+| `session.id` | `2f1c…` | set when the request carries a `session_id`; groups a multi-turn conversation into one Phoenix thread |
 
 ### Enterprise extensions
 
@@ -34,6 +35,7 @@ Emitted once per LLM call as a `CLIENT` span named `<operation> <model>`.
 | `enterprise.agent.criticality` | `low` / `medium` / `high` / `critical` |
 | `enterprise.agent.data_classification` | `public` / `internal` / `confidential` / `restricted` |
 | `enterprise.business_unit` | business unit string |
+| `enterprise.session.id` | conversation/thread id (mirror of `session.id`) |
 
 ### Message content capture
 

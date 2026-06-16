@@ -90,3 +90,18 @@ def test_run_eval_rejects_non_approved(monkeypatch):
 def test_inline_eval_not_implemented():
     resp = client.post("/inline-eval")
     assert resp.status_code == 501
+
+
+def test_score_session_unknown_agent_404(monkeypatch):
+    async def fake_resolve_agent(self, ref):
+        return None
+
+    monkeypatch.setattr(GovernanceClient, "resolve_agent", fake_resolve_agent)
+    resp = client.post(
+        "/score-session",
+        json={
+            "agent": "nope",
+            "session": {"session_id": "s1", "turns": [{"trace_id": "t1", "input": "hi", "output": "ho"}]},
+        },
+    )
+    assert resp.status_code == 404

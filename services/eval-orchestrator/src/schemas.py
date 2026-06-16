@@ -15,6 +15,7 @@ class TraceRef(BaseModel):
 
     trace_id: str
     span_id: str | None = None
+    session_id: str | None = None
     input: str | None = None
     output: str | None = None
     agent_id: uuid.UUID | None = None
@@ -30,6 +31,7 @@ class RunEvalRequest(BaseModel):
 class EvalVerdict(BaseModel):
     trace_id: str
     span_id: str | None
+    session_id: str | None = None
     eval_id: str
     eval_version: str
     verdict: str
@@ -74,6 +76,29 @@ class ScoreResponse(BaseModel):
     agent_id: str | None
     agent_name: str | None
     trace_id: str
+    results: list[EvalVerdict]
+    consolidated: ConsolidatedScore
+
+
+# ── Session scoring (session-scoped suite over a whole conversation) ─────────
+class SessionRef(BaseModel):
+    """A conversation: an ordered list of turns sharing one session_id."""
+
+    session_id: str
+    turns: list[TraceRef] = Field(default_factory=list)
+
+
+class ScoreSessionRequest(BaseModel):
+    agent: str  # agent uuid or name
+    session: SessionRef
+    eval_ids: list[str] | None = None  # optional subset
+
+
+class ScoreSessionResponse(BaseModel):
+    agent_id: str | None
+    agent_name: str | None
+    session_id: str
+    turn_count: int
     results: list[EvalVerdict]
     consolidated: ConsolidatedScore
 

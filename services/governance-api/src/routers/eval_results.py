@@ -29,6 +29,7 @@ def create_eval_result(body: EvalResultCreate, db: Session = Depends(get_db)) ->
     result = EvalResult(
         trace_id=body.trace_id,
         span_id=body.span_id,
+        session_id=body.session_id,
         eval_id=body.eval_id,
         eval_version=body.eval_version,
         verdict=body.verdict,
@@ -49,6 +50,7 @@ def create_eval_result(body: EvalResultCreate, db: Session = Depends(get_db)) ->
 def query_eval_results(
     db: Session = Depends(get_db),
     trace_id: str | None = Query(default=None),
+    session_id: str | None = Query(default=None),
     agent_id: uuid.UUID | None = Query(default=None),
     eval_id: str | None = Query(default=None),
     from_: datetime | None = Query(default=None, alias="from"),
@@ -58,6 +60,8 @@ def query_eval_results(
     stmt = select(EvalResult)
     if trace_id:
         stmt = stmt.where(EvalResult.trace_id == trace_id)
+    if session_id:
+        stmt = stmt.where(EvalResult.session_id == session_id)
     if agent_id:
         stmt = stmt.where(EvalResult.agent_id == agent_id)
     if eval_id:

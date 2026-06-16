@@ -5,6 +5,7 @@ import {
   History,
   LayoutDashboard,
   ListChecks,
+  MessagesSquare,
   ShieldCheck,
   Bot,
 } from "lucide-react";
@@ -17,7 +18,8 @@ const NAV = [
   { to: "/", label: "Dashboard", icon: LayoutDashboard, end: true },
   { to: "/agents", label: "Agents", icon: Bot },
   { to: "/evals", label: "Evals", icon: ListChecks },
-  { to: "/traces", label: "Traces", icon: Activity },
+  { to: "/conversations", label: "Conversations", icon: MessagesSquare },
+  { to: "/traces", label: "Traces (turns)", icon: Activity },
   { to: "/regressions", label: "Regressions", icon: GitCompareArrows },
   { to: "/changes", label: "Change Events", icon: History },
   { to: "/governance", label: "Governance", icon: ShieldCheck },

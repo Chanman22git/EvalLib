@@ -45,6 +45,7 @@ def create_eval(body: EvalCreate, db: Session = Depends(get_db)) -> Eval:
         owner_email=body.owner_email,
         expires_at=body.expires_at,
         blocking=body.blocking,
+        scope=body.scope,
     )
     db.add(ev)
     try:
@@ -67,7 +68,7 @@ def create_eval(body: EvalCreate, db: Session = Depends(get_db)) -> Eval:
         db, actor=body.owner_email or "system", action="eval.create",
         entity_type="eval", entity_id=ev.id,
         detail={"eval_id": ev.eval_id, "version": ev.version, "blocking": ev.blocking,
-                "attached_agents": [str(a) for a in body.agent_ids]},
+                "scope": ev.scope, "attached_agents": [str(a) for a in body.agent_ids]},
     )
     db.commit()
     db.refresh(ev)

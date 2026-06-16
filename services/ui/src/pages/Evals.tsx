@@ -96,6 +96,11 @@ export function Evals() {
                           blocking
                         </Badge>
                       )}
+                      {e.scope === "session" && (
+                        <Badge className="ml-2 bg-sky-100 text-sky-700 border-sky-200">
+                          session
+                        </Badge>
+                      )}
                     </TableCell>
                     <TableCell className="num text-muted-foreground">{e.version}</TableCell>
                     <TableCell className="max-w-sm truncate text-muted-foreground" title={e.criterion_description}>
@@ -139,6 +144,7 @@ function CreateEvalDialog() {
     owner_team: "",
     owner_email: "",
     blocking: false,
+    scope: "turn",
     agent_ids: [],
   });
   const set = (k: keyof EvalCreate, v: unknown) => setForm((f) => ({ ...f, [k]: v }));
@@ -220,6 +226,18 @@ function CreateEvalDialog() {
             </div>
           </div>
 
+          <div className="grid gap-1.5">
+            <Label>Scope</Label>
+            <Select
+              value={form.scope ?? "turn"}
+              onValueChange={(v) => set("scope", v)}
+              options={[
+                { label: "Turn — judge one trace", value: "turn" },
+                { label: "Session — judge a whole conversation", value: "session" },
+              ]}
+            />
+          </div>
+
           <label className="flex items-start gap-2 rounded-md border bg-muted/30 p-2 text-sm">
             <input
               type="checkbox"
@@ -228,7 +246,7 @@ function CreateEvalDialog() {
               className="mt-0.5"
             />
             <span>
-              <span className="font-medium">Blocking</span> — if this eval fails for a trace, the
+              <span className="font-medium">Blocking</span> — if this eval fails, the
               agent's whole suite fails (regardless of the mean).
             </span>
           </label>

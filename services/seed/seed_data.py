@@ -97,6 +97,13 @@ MAPPINGS = [
     ("pii_detection", "marketing-copy-generator", 0.25),
 ]
 
+# Session-scoped evals — mapped to the agent but NOT used to generate synthetic
+# per-turn history (they run against whole conversations via /score-session).
+SESSION_MAPPINGS = [
+    ("multi_turn_coherence", "customer-support-refund", 1.0),
+    ("resolution", "customer-support-refund", 1.0),
+]
+
 
 def wait_for_api(client: httpx.Client, retries: int = 30) -> None:
     for _ in range(retries):
@@ -170,7 +177,17 @@ def seed() -> None:
                     "sample_rate": rate,
                 },
             ).raise_for_status()
-        print(f"Seeded {len(MAPPINGS)} eval-agent mappings.")
+        for eval_id, agent_name, rate in SESSION_MAPPINGS:
+            client.post(
+                f"{BASE_URL}/eval-agent-mapping",
+                json={
+                    "eval_id": eval_pks[eval_id],
+                    "agent_id": agent_ids[agent_name],
+                    "sample_rate": rate,
+                },
+            ).raise_for_status()
+        print(f"Seeded {len(MAPPINGS) + len(SESSION_MAPPINGS)} eval-agent mappings "
+              f"({len(SESSION_MAPPINGS)} session-scoped).")
 
         # 5. Eval results across 7 days (+ injected regression on refund agent)
         total_results = 0

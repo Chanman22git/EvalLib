@@ -45,8 +45,32 @@ curl -s localhost:8002/run-eval -H 'content-type: application/json' -d "{
 ```
 
 - The trace appears in **Phoenix** (http://localhost:6006) within seconds.
-- It appears in the UI under **Traces** → click it → see the eval verdict,
+- It appears in the UI under **Traces (turns)** → click it → see the eval verdict,
   reasoning, judge model, and an "Open in Phoenix" deep link.
+
+## 2b. Engineering — a multi-turn conversation (live)
+
+Turn-level evals catch per-response problems; **session-level** evals catch ones
+that only emerge across a conversation (contradicting an earlier answer, leaving
+the customer hanging). Drive the multi-turn agent — it shares one `session_id`
+across turns and scores the whole conversation on exit:
+
+```bash
+printf '%s\n' \
+  "Can I get a refund after 25 days?" \
+  "What about a digital download I bought?" \
+  "Okay, can you escalate that for me?" \
+  quit | make chat
+```
+
+- Each turn prints its **turn** scorecard; on exit the agent prints a **SESSION**
+  scorecard (`multi_turn_coherence`, `resolution`).
+- In **Phoenix**, the three turns are grouped into one **thread** (via `session.id`).
+- In the UI under **Conversations** → open the session → the top card shows the
+  whole-conversation verdicts and below it each turn with its per-turn verdicts.
+
+> `make chat` defaults to the agent's full approved suite; add `--single <eval_id>`
+> for one eval, or `--no-eval` to skip scoring.
 
 ## 3. Risk & compliance — the governance workflow (`/evals`)
 
