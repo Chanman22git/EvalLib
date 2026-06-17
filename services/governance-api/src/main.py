@@ -25,6 +25,12 @@ def _ensure_columns() -> None:
         conn.execute(
             text("ALTER TABLE evals ADD COLUMN IF NOT EXISTS blocking BOOLEAN NOT NULL DEFAULT FALSE")
         )
+        conn.execute(
+            text("ALTER TABLE evals ADD COLUMN IF NOT EXISTS scope VARCHAR NOT NULL DEFAULT 'turn'")
+        )
+        conn.execute(
+            text("ALTER TABLE eval_results ADD COLUMN IF NOT EXISTS session_id VARCHAR")
+        )
 from .routers import (
     agents,
     audit_log,

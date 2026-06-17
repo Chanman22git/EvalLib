@@ -101,6 +101,8 @@ class EvalCreate(BaseModel):
     expires_at: datetime | None = None
     # If True, a failure of this eval makes the agent's whole suite FAIL.
     blocking: bool = False
+    # "turn" (default) judges one trace; "session" judges a conversation.
+    scope: str = "turn"
     # Optional: auto-create eval→agent mappings at creation time.
     agent_ids: list[uuid.UUID] = Field(default_factory=list)
 
@@ -140,6 +142,7 @@ class EvalOut(ORMModel):
     approved_at: datetime | None
     expires_at: datetime | None
     blocking: bool
+    scope: str
     created_at: datetime
     updated_at: datetime
 
@@ -200,6 +203,7 @@ class ChangeEventOut(ORMModel):
 class EvalResultCreate(BaseModel):
     trace_id: str
     span_id: str | None = None
+    session_id: str | None = None
     eval_id: str
     eval_version: str = "1.0.0"
     verdict: str
@@ -214,6 +218,7 @@ class EvalResultOut(ORMModel):
     id: uuid.UUID
     trace_id: str
     span_id: str | None
+    session_id: str | None
     eval_id: str
     eval_version: str
     verdict: str

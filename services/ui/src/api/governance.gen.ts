@@ -690,6 +690,11 @@ export interface components {
              * @default false
              */
             blocking: boolean;
+            /**
+             * Scope
+             * @default turn
+             */
+            scope: string;
             /** Agent Ids */
             agent_ids?: string[];
         };
@@ -738,6 +743,8 @@ export interface components {
             expires_at: string | null;
             /** Blocking */
             blocking: boolean;
+            /** Scope */
+            scope: string;
             /**
              * Created At
              * Format: date-time
@@ -799,6 +806,8 @@ export interface components {
             trace_id: string;
             /** Span Id */
             span_id: string | null;
+            /** Session Id */
+            session_id: string | null;
             /** Eval Id */
             eval_id: string;
             /** Eval Version */

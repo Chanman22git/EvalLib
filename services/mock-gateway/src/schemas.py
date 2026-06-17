@@ -42,6 +42,7 @@ class ChatRequest(BaseModel):
     temperature: float = 0.7
     max_tokens: int = 1024
     operation_name: str = "chat"  # gen_ai.operation.name (chat|execute_tool|invoke_agent)
+    session_id: str | None = None  # groups turns of one conversation (OTel session.id)
     agent: AgentContext
 
 

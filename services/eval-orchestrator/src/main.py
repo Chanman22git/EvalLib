@@ -11,8 +11,16 @@ from .executor import EvalNotRunnable, Executor
 from .governance_client import GovernanceClient
 from .otel_emitter import init_tracing
 from .regression_job import regression_loop, run_regression_detection
-from .schemas import RunEvalRequest, RunEvalResponse, SampleRunResponse, ScoreRequest, ScoreResponse
-from .suite import score_trace
+from .schemas import (
+    RunEvalRequest,
+    RunEvalResponse,
+    SampleRunResponse,
+    ScoreRequest,
+    ScoreResponse,
+    ScoreSessionRequest,
+    ScoreSessionResponse,
+)
+from .suite import score_session, score_trace
 from .worker import run_sampling_pass, sampling_loop
 
 
@@ -90,6 +98,18 @@ async def score(req: ScoreRequest) -> ScoreResponse:
     except LookupError as exc:
         raise HTTPException(status_code=404, detail=str(exc)) from exc
     return ScoreResponse(**result)
+
+
+@app.post("/score-session", response_model=ScoreSessionResponse)
+async def score_session_endpoint(req: ScoreSessionRequest) -> ScoreSessionResponse:
+    """Run the agent's approved+mapped *session-scoped* suite over a conversation."""
+    try:
+        result = await score_session(
+            agent_ref=req.agent, session=req.session, eval_ids=req.eval_ids
+        )
+    except LookupError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    return ScoreSessionResponse(**result)
 
 
 @app.post("/detect-regressions")

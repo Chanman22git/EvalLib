@@ -6,7 +6,7 @@ import pytest
 
 from src import suite as suite_mod
 from src.executor import Executor
-from src.schemas import EvalVerdict, TraceRef
+from src.schemas import EvalVerdict, SessionRef, TraceRef
 
 _FAKE_AGENT_ID = str(uuid.uuid4())
 
@@ -106,3 +106,68 @@ async def test_non_blocking_failure_does_not_FAIL_when_mean_ok(monkeypatch, trac
     assert c["status"] == "PASS"
     assert c["blocking_failures"] == []
     assert c["fail_count"] == 1
+
+
+# ── Scope split: turn vs session ────────────────────────────────────────────
+
+_MIXED_EVALS = [
+    {"id": "pk1", "eval_id": "refund_policy_compliance", "review_status": "approved", "blocking": False, "scope": "turn"},
+    {"id": "pk2", "eval_id": "multi_turn_coherence",     "review_status": "approved", "blocking": False, "scope": "session"},
+    {"id": "pk3", "eval_id": "resolution",               "review_status": "approved", "blocking": False, "scope": "session"},
+]
+
+
+def _echo_executor_run(scores):
+    """Fake Executor.run that echoes the ref so session_id/transcript can be asserted."""
+    seen: dict = {}
+
+    async def _run(self, eval_def, ref, judge_model=None):
+        seen[eval_def["eval_id"]] = ref
+        s, passed = scores[eval_def["eval_id"]]
+        return EvalVerdict(
+            trace_id=ref.trace_id, span_id=ref.span_id, session_id=ref.session_id,
+            eval_id=eval_def["eval_id"], eval_version="1.0.0",
+            verdict="compliant" if passed else "non_compliant", score=s,
+            reasoning="test", judge_model="claude-test", passed=passed,
+        )
+
+    return _run, seen
+
+
+async def test_score_trace_excludes_session_scoped_evals(monkeypatch, trace):
+    scores = {"refund_policy_compliance": (0.9, True), "multi_turn_coherence": (0.9, True), "resolution": (0.9, True)}
+    run, _ = _echo_executor_run(scores)
+    monkeypatch.setattr(Executor, "run", run)
+    gov = FakeGov(_MIXED_EVALS, scores)
+    r = await suite_mod.score_trace(agent_ref="a", trace=trace, governance=gov)  # type: ignore[arg-type]
+    ran = {v["eval_id"] for v in r["results"]}
+    assert ran == {"refund_policy_compliance"}  # only the turn-scoped eval ran
+
+
+async def test_score_session_runs_only_session_evals_and_stamps_session_id(monkeypatch):
+    scores = {"refund_policy_compliance": (0.9, True), "multi_turn_coherence": (0.9, True), "resolution": (0.4, False)}
+    run, seen = _echo_executor_run(scores)
+    monkeypatch.setattr(Executor, "run", run)
+    gov = FakeGov(_MIXED_EVALS, scores)
+    session = SessionRef(
+        session_id="sess-123",
+        turns=[
+            TraceRef(trace_id="t1", input="refund after 25 days?", output="Within the 30-day window, yes."),
+            TraceRef(trace_id="t2", input="and digital goods?", output="I'll escalate that."),
+        ],
+    )
+    r = await suite_mod.score_session(agent_ref="a", session=session, governance=gov)  # type: ignore[arg-type]
+
+    ran = {v["eval_id"] for v in r["results"]}
+    assert ran == {"multi_turn_coherence", "resolution"}  # turn-scoped eval excluded
+    assert r["session_id"] == "sess-123"
+    assert r["turn_count"] == 2
+    # Session verdicts are grouped under the session id (trace_id == session_id).
+    assert all(v["session_id"] == "sess-123" and v["trace_id"] == "sess-123" for v in r["results"])
+    # resolution failed (0.4) → mean 0.65 < 0.75 → FAIL.
+    assert r["consolidated"]["status"] == "FAIL"
+
+    # The judge saw the whole transcript (both turns) as its input.
+    transcript = seen["multi_turn_coherence"].input
+    assert "refund after 25 days?" in transcript and "and digital goods?" in transcript
+    assert transcript.count("[Turn ") == 2

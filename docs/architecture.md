@@ -71,6 +71,13 @@ OpenTelemetry and adds the enterprise governance views and controls they lack.
   the OTel event + Postgres mirror are authoritative.
 - **The UI consumes TypeScript types generated from the OpenAPI specs**, keeping
   frontend and backend in lock-step (`npm run gen:types`).
+- **Evals carry a `scope` (`turn` | `session`).** Turn-scoped evals judge one
+  trace; session-scoped evals judge a whole conversation. The gateway tags each
+  turn's span with `session.id` (Phoenix groups the thread), and the orchestrator
+  scores a conversation via `POST /score-session`, which builds a transcript from
+  the session's turns and runs only the agent's session-scoped suite. Every
+  `eval_result` carries the `session_id`, so the UI's **Conversations** view
+  groups per-turn and whole-conversation verdicts into one thread.
 
 ## Data flow: a live eval
 
@@ -86,6 +93,21 @@ OpenTelemetry and adds the enterprise governance views and controls they lack.
    a regression alert with ranked candidate causes and emits
    `enterprise.regression.detected`.
 6. The UI reads the Governance API (and deep-links to Phoenix for span detail).
+
+### Data flow: a multi-turn conversation
+
+1. The multi-turn agent (`make chat`) generates one `session_id` and sends it on
+   every `POST /v1/chat`; the gateway stamps `session.id` on each turn's span so
+   Phoenix collapses them into one thread.
+2. Each turn is still scored turn-by-turn via `POST /score` (now turn-scoped
+   only), and those results are persisted with the `session_id`.
+3. At the end of the conversation the agent calls `POST /score-session` with the
+   ordered turns. The orchestrator builds a transcript (`[Turn n] User/Agent …`),
+   runs the agent's approved **session-scoped** suite (e.g. `multi_turn_coherence`,
+   `resolution`) over it, and persists each verdict with `trace_id == session_id`.
+4. The UI's **Conversations** view groups every result by `session_id`: session
+   rows (`trace_id == session_id`) render as whole-conversation verdicts, the rest
+   as per-turn verdicts.
 
 ## Service ports
 

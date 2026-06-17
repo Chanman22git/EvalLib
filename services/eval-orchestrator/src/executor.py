@@ -139,6 +139,7 @@ class Executor:
         result = EvalVerdict(
             trace_id=ref.trace_id,
             span_id=ref.span_id,
+            session_id=ref.session_id,
             eval_id=eval_def["eval_id"],
             eval_version=eval_def["version"],
             verdict=verdict_obj.verdict if verdict_obj else "judge_error",
@@ -189,6 +190,7 @@ class Executor:
                 {
                     "trace_id": result.trace_id,
                     "span_id": result.span_id,
+                    "session_id": result.session_id,
                     "eval_id": result.eval_id,
                     "eval_version": result.eval_version,
                     "verdict": result.verdict,
