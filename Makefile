@@ -37,7 +37,7 @@ ps: ## Show service status
 	$(COMPOSE) ps
 
 seed: ## Populate the Governance Store with demo data
-	$(COMPOSE) run --rm seed python seed_data.py
+	$(COMPOSE) run --rm --build seed python seed_data.py
 
 demo: ## Run the end-to-end demo
 	./scripts/demo.sh

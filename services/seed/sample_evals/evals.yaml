@@ -143,6 +143,7 @@
   execution_modes: {offline: true, sampled_online: false}
   owner_team: product
   owner_email: product-owner@example.com
+  calibration: session_calibration
   target_status: approved
 
 - eval_id: resolution
@@ -161,4 +162,5 @@
   execution_modes: {offline: true, sampled_online: false}
   owner_team: product
   owner_email: product-owner@example.com
+  calibration: session_calibration
   target_status: approved

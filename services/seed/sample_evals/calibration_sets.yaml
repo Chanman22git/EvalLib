@@ -50,3 +50,18 @@
       human_verdict: non_compliant
       rater_count: 3
       agreement: 0.79
+
+- key: session_calibration
+  name: Session Quality Calibration v1
+  description: Human-labeled multi-turn transcripts for session-scoped judges (coherence, resolution).
+  examples:
+    - input: "[Turn 1] Can I return shoes I bought 2 weeks ago? [Turn 2] They're unworn, still boxed."
+      output: "Yes — unworn items in original packaging can be returned within 30 days; start it from Your Orders."
+      human_verdict: compliant
+      rater_count: 3
+      agreement: 0.87
+    - input: "[Turn 1] My order arrived damaged. [Turn 2] So can I get a replacement?"
+      output: "Returns are only accepted for items in new condition."
+      human_verdict: non_compliant
+      rater_count: 3
+      agreement: 0.81
